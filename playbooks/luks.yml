@@ -1,0 +1,5 @@
+---
+- name: Apply LUKS Encryption (CAUTION)
+  hosts: manager          # On commence uniquement par le manager
+  roles:
+    - luks-encryption

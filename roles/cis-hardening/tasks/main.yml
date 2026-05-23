@@ -1,0 +1,43 @@
+---
+- name: Apply CIS Level 1 Hardening
+  block:
+    - name: Disable unused services
+      service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop:
+        - avahi-daemon
+        - cups
+        - nfs-server
+        - rpcbind
+      ignore_errors: yes
+
+    - name: Configure SSH Hardening
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+      notify: Restart SSH
+
+    - name: Enable UFW and deny by default
+      ufw:
+        state: enabled
+        default: deny
+
+    - name: Allow only SSH on UFW
+      ufw:
+        rule: allow
+        port: ssh
+  become: yes
+
+- name: Restart SSH if needed
+  service:
+    name: ssh
+    state: restarted
+  become: yes
+  when: false  # Will be triggered by handler

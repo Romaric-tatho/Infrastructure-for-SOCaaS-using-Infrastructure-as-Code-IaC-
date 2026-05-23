@@ -1,0 +1,27 @@
+---
+- name: Install cryptsetup package
+  apt:
+    name: cryptsetup
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Check if the disk is already encrypted with LUKS
+  command: cryptsetup isLuks /dev/sda
+  register: luks_check
+  failed_when: false
+  become: yes
+  ignore_errors: yes
+
+- name: Print current LUKS status
+  debug:
+    msg: "Disk /dev/sda is {{ 'already encrypted' if luks_check.rc == 0 else 'NOT encrypted yet' }}"
+
+- name: WARNING - Encrypt the disk with LUKS (This is destructive!)
+  command: echo "{{ luks_passphrase }}" | cryptsetup luksFormat /dev/sda --key-file=-
+  when: luks_check is defined and luks_check.rc != 0
+  become: yes
+  vars:
+    luks_passphrase: "Numeri44"
+  tags:
+    - never

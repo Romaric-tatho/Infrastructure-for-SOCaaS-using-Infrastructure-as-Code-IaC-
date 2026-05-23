@@ -1,0 +1,5 @@
+---
+- name: Apply common configuration to all servers
+  hosts: all
+  roles:
+    - common

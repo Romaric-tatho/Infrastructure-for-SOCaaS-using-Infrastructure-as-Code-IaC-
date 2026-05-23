@@ -1,0 +1,14 @@
+[manager]
+manager ansible_host=192.168.100.20
+
+[vault]
+vault ansible_host=192.168.100.30
+
+[agents]
+agent-01 ansible_host=192.168.100.41
+agent-02 ansible_host=192.168.100.42
+
+[all:vars]
+ansible_user=ansible
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
+ansible_python_interpreter=/usr/bin/python3

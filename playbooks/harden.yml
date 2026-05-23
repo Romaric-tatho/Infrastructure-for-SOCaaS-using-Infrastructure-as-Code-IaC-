@@ -1,0 +1,5 @@
+---
+- name: Apply CIS Hardening on all servers
+  hosts: all
+  roles:
+    - cis-hardening

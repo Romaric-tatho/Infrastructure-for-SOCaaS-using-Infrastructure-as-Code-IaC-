@@ -1,0 +1,77 @@
+---
+# === User and Sudo Configuration ===
+- name: Ensure ansible user exists with sudo privileges
+  user:
+    name: ansible
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+  become: yes
+
+- name: Allow ansible user to run sudo without password
+  copy:
+    content: "ansible ALL=(ALL) NOPASSWD: ALL"
+    dest: /etc/sudoers.d/ansible
+    owner: root
+    group: root
+    mode: '0440'
+  become: yes
+
+# === System Update and Basic Packages ===
+- name: Update and upgrade apt packages
+  apt:
+    update_cache: yes
+    upgrade: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Install common essential packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - vim
+      - net-tools
+      - htop
+      - unzip
+      - ufw
+      - fail2ban
+      - chrony
+      - python3
+    state: present
+  become: yes
+
+- name: Set timezone to Africa/Douala
+  timezone:
+    name: Africa/Douala
+  become: yes
+
+
+- name: Enable and start UFW firewall
+  ufw:
+    state: enabled
+    rule: allow
+    port: ssh
+  become: yes
+
+- name: Enable fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Enable chrony (time sync)
+  service:
+    name: chrony
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Clean apt cache
+  apt:
+    autoremove: yes
+    autoclean: yes
+  become: yes
