@@ -1,0 +1,5 @@
+---
+- name: Deploy WireGuard VPN (Zero-Trust)
+  hosts: all
+  roles:
+    - wireguard

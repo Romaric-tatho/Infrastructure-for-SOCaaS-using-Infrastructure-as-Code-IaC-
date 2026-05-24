@@ -1,0 +1,107 @@
+---
+- name: Install WireGuard
+  apt:
+    name: wireguard
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Enable IP forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    reload: yes
+  become: yes
+
+- name: Désactiver le filtrage strict des routes (rp_filter)
+  sysctl:
+    name: "{{ item }}"
+    value: '0'
+    sysctl_set: yes
+    reload: yes
+  become: yes
+  loop:
+    - net.ipv4.conf.all.rp_filter
+    - net.ipv4.conf.default.rp_filter
+    - net.ipv4.conf.wg0.rp_filter
+
+- name: Lire la cle privee existante
+  slurp:
+    src: /etc/wireguard/private.key
+  register: wg_private_key_b64
+  become: yes
+  failed_when: false
+
+- name: Generer la cle privee si elle n'existe pas
+  command: wg genkey
+  register: wg_private_key_new
+  when: wg_private_key_b64.content is not defined
+  become: yes
+  no_log: true
+
+- name: Sauvegarder la cle privee si nouvelle
+  copy:
+    content: "{{ wg_private_key_new.stdout }}"
+    dest: /etc/wireguard/private.key
+    mode: '0600'
+  when: wg_private_key_b64.content is not defined
+  become: yes
+
+- name: Recuperer la cle privee finale brute
+  command: cat /etc/wireguard/private.key
+  register: wg_private_key
+  changed_when: false
+  become: yes
+  no_log: true
+
+- name: Generer et recuperer la cle publique correspondante
+  shell: cat /etc/wireguard/private.key | wg pubkey
+  register: wg_public_key
+  changed_when: false
+  become: yes
+
+- name: Créer le fichier wg0.conf depuis le template
+  template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    mode: '0600'
+  become: yes
+  register: config_file
+
+- name: Force down WireGuard interface pour vider le cache du noyau
+  command: wg-quick down wg0
+  become: yes
+  failed_when: false
+  when: config_file.changed
+
+- name: Activer et démarrer proprement l'interface WireGuard rafraîchie
+  command: wg-quick up wg0
+  become: yes
+  when: config_file.changed
+
+- name: Assurer que le service systemd est actif pour persistance au reboot
+  systemd:
+    name: wg-quick@wg0
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Autoriser le port WireGuard UDP 51820
+  ufw:
+    rule: allow
+    port: '51820'
+    proto: udp
+  become: yes
+
+- name: Autoriser tout le trafic sur l'interface wg0 (Réseau de confiance)
+  ufw:
+    rule: allow
+    direction: in
+    interface: wg0
+  become: yes
+
+- name: Recharger le pare-feu UFW pour appliquer
+  ufw:
+    state: reloaded
+  become: yes

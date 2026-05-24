@@ -1,0 +1,36 @@
+[Interface]
+PrivateKey = {{ wg_private_key.stdout }}
+ListenPort = 51820
+
+# Attribution de l'IP VPN selon la machine actuelle
+{% if inventory_hostname == 'manager' %}
+Address = 10.0.0.1/24
+{% elif inventory_hostname == 'vault' %}
+Address = 10.0.0.2/24
+{% elif inventory_hostname == 'agent-01' %}
+Address = 10.0.0.11/24
+{% elif inventory_hostname == 'agent-02' %}
+Address = 10.0.0.12/24
+{% endif %}
+
+{% if inventory_hostname != 'manager' %}
+# Connexion des nœuds vers le Manager Central du SOC
+[Peer]
+PublicKey = {{ hostvars['manager']['wg_public_key']['stdout'] }}
+Endpoint = 192.168.100.20:51820
+AllowedIPs = 10.0.0.1/32
+PersistentKeepalive = 25
+{% else %}
+# Liste des connexions autorisées sur le Manager Central
+[Peer]
+PublicKey = {{ hostvars['vault']['wg_public_key']['stdout'] }}
+AllowedIPs = 10.0.0.2/32
+
+[Peer]
+PublicKey = {{ hostvars['agent-01']['wg_public_key']['stdout'] }}
+AllowedIPs = 10.0.0.11/32
+
+[Peer]
+PublicKey = {{ hostvars['agent-02']['wg_public_key']['stdout'] }}
+AllowedIPs = 10.0.0.12/32
+{% endif %}

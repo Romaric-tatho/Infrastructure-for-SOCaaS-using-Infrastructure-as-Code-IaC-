@@ -1,10 +1,10 @@
-[manager]
+[manager_group]
 manager ansible_host=192.168.100.20
 
-[vault]
+[vault_group]
 vault ansible_host=192.168.100.30
 
-[agents]
+[agents_group]
 agent-01 ansible_host=192.168.100.41
 agent-02 ansible_host=192.168.100.42
 
@@ -12,3 +12,4 @@ agent-02 ansible_host=192.168.100.42
 ansible_user=ansible
 ansible_ssh_private_key_file=~/.ssh/id_ed25519
 ansible_python_interpreter=/usr/bin/python3
+host_number={{ inventory_hostname | regex_replace('^.*(\d+)$', '\1') | default('10') }}
