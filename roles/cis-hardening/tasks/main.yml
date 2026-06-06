@@ -1,7 +1,18 @@
 ---
-- name: Apply CIS Level 1 Hardening
+- name: CIS Level 1 Hardening - General
   block:
-    - name: Disable unused services
+    - name: Update package cache
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: "[CIS 5.4.1] Installer la bibliothèque de qualité des mots de passe"
+      apt:
+        name: libpam-pwquality
+        state: present
+      become: yes
+
+    - name: Disable unused services (only if installed)
       service:
         name: "{{ item }}"
         state: stopped
@@ -12,32 +23,76 @@
         - nfs-server
         - rpcbind
       ignore_errors: yes
+      become: yes
 
-    - name: Configure SSH Hardening
+    - name: Configure SSH Hardening (CIS)
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "{{ item.regexp }}"
         line: "{{ item.line }}"
+        backup: yes
       loop:
         - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
         - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
         - { regexp: '^#?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
       notify: Restart SSH
+      become: yes
 
-    - name: Enable UFW and deny by default
+    - name: Enable UFW and set default policy to deny
       ufw:
         state: enabled
         default: deny
+      become: yes
 
-    - name: Allow only SSH on UFW
+    - name: Allow SSH through UFW
       ufw:
         rule: allow
-        port: ssh
+        port: '22'
+        proto: tcp
+      become: yes
+
+    - name: "[SÉCURITÉ INFRA] Autoriser le trafic chiffré du VPN WireGuard (Sécurité projet)"
+      ufw:
+        rule: allow
+        port: '51820'
+        proto: udp
+      become: yes
+
+    - name: "[SÉCURITÉ INFRA] Autoriser tout le trafic provenant de l'interface wg0 (Tunnel de confiance)"
+      ufw:
+        rule: allow
+        direction: in
+        interface: wg0
+      become: yes
+
+    - name: "[CIS 5.4.1] Forcer une longueur minimale de 14 caractères pour les mots de passe locaux"
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?\s*minlen'
+        line: "minlen = 14"
+      become: yes
+
+    - name: "[CIS 1.6.1] Restreindre l'accès en lecture seule aux dossiers de logs système"
+      file:
+        path: /var/log
+        mode: '0750'
+        recurse: no
+      become: yes
+
+    - name: "[CIS 4.1.1] Activer la protection du noyau contre le vol de cookies réseau (ICMP Redirects)"
+      sysctl:
+        name: "{{ item }}"
+        value: '0'
+        sysctl_set: yes
+        reload: yes
+      become: yes
+      loop:
+        - net.ipv4.conf.all.accept_redirects
+        - net.ipv4.conf.default.accept_redirects
+
   become: yes
 
-- name: Restart SSH if needed
-  service:
-    name: ssh
-    state: restarted
-  become: yes
-  when: false  # Will be triggered by handler
+- name: Restart services if needed
+  meta: flush_handlers
+

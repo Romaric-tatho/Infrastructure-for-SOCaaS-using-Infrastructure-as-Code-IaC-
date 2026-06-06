@@ -1,0 +1,65 @@
+---
+- name: Installer les paquets prérequis (ca-certificates)
+  apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Créer le dossier pour les keyrings s'il n'existe pas
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Télécharger et installer la clé GPG officielle HashiCorp de manière isolée
+  get_url:
+    url: https://apt.releases.hashicorp.com/gpg
+    dest: /usr/share/keyrings/hashicorp-archive-keyring.asc
+    mode: '0644'
+    force: yes
+  become: yes
+
+- name: Ajouter le dépôt HashiCorp proprement signé par sa clé
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.asc] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+    filename: hashicorp
+  become: yes
+
+- name: Installer HashiCorp Vault depuis le nouveau dépôt officiel
+  apt:
+    name: vault
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Créer le dossier de stockage des données de Vault
+  file:
+    path: /opt/vault/data
+    state: directory
+    owner: vault
+    group: vault
+    mode: '0750'
+  become: yes
+
+- name: Générer le fichier de configuration vault.hcl depuis le template
+  template:
+    src: vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify: Restart Vault
+
+- name: Démarrer et activer le service Vault
+  systemd:
+    name: vault
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes

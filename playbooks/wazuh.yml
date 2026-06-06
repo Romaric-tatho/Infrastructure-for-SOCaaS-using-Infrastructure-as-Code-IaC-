@@ -1,0 +1,5 @@
+---
+- name: Installation Wazuh All-in-One (Native)
+  hosts: manager
+  roles:
+    - wazuh-manager

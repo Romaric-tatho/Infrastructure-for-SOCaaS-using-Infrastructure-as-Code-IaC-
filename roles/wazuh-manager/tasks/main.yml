@@ -1,0 +1,30 @@
+---
+- name: Télécharger le script officiel Wazuh All-in-One (URL Directe)
+  get_url:
+    url: https://packages.wazuh.com/4.8/wazuh-install.sh
+    dest: /tmp/wazuh-install.sh
+    mode: '0755'
+    force: yes
+  become: yes
+
+- name: Exécuter l installation All-in-One (avec overwrite)
+  shell: bash /tmp/wazuh-install.sh -a --overwrite
+  become: yes
+  register: wazuh_install
+
+- name: Récupérer les mots de passe générés (Sécurité)
+  shell: tar -O -xf /root/wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
+  become: yes
+  register: wazuh_passwords
+
+- name: Afficher les identifiants de connexion (important)
+  debug:
+    msg: |
+      ======================================================
+      Mots de passe extraits du système :
+      ======================================================
+      {{ wazuh_passwords.stdout }}
+      ======================================================
+      Détails de l'installation standard :
+      ======================================================
+      {{ wazuh_install.stdout_lines | default('Vérifie le fichier /var/log/wazuh-install.log') }}

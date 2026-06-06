@@ -1,0 +1,30 @@
+<ossec_config>
+  <client>
+    <server>
+      <address>10.0.0.1</address>
+    </server>
+  </client>
+
+  <global>
+    <email_notification>no</email_notification>
+  </global>
+
+  <alerts>
+    <log_alert_level>3</log_alert_level>
+  </alerts>
+
+  <syscheck>
+    <frequency>43200</frequency>
+    <scan_on_start>yes</scan_on_start>
+  </syscheck>
+
+  <rootcheck>
+    <frequency>43200</frequency>
+  </rootcheck>
+
+  <sca>
+    <enabled>yes</enabled>
+    <scan_on_start>yes</scan_on_start>
+    <interval>12h</interval>
+  </sca>
+</ossec_config>

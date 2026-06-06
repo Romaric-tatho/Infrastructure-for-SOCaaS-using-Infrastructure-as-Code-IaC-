@@ -1,0 +1,30 @@
+<ossec_config>
+  <global>
+    <email_notification>no</email_notification>
+  </global>
+
+  <alerts>
+    <log_alert_level>3</log_alert_level>
+  </alerts>
+
+  <remote>
+    <connection>secure</connection>
+    <port>1514</port>
+    <protocol>tcp</protocol>
+  </remote>
+
+  <syscheck>
+    <frequency>43200</frequency>
+    <scan_on_start>yes</scan_on_start>
+  </syscheck>
+
+  <rootcheck>
+    <frequency>43200</frequency>
+  </rootcheck>
+
+  <client>
+    <server>
+      <address>10.0.0.1</address>
+    </server>
+  </client>
+</ossec_config>

@@ -1,0 +1,6 @@
+---
+- name: "Déploiement automatisé des agents Wazuh 4.8 sur les serveurs clients"
+  hosts: agents_group
+  gather_facts: yes
+  roles:
+    - wazuh-agent

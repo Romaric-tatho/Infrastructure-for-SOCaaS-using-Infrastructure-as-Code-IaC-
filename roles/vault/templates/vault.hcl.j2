@@ -1,0 +1,17 @@
+storage "file" {
+  path = "/opt/vault/data"
+}
+
+listener "tcp" {
+  address     = "{{ vault_cluster_address }}:{{ vault_port }}"
+  tls_disable = 1
+}
+
+# API address accessible via WireGuard
+api_addr = "http://{{ vault_cluster_address }}:{{ vault_port }}"
+cluster_addr = "http://{{ vault_cluster_address }}:8201"
+
+ui = true
+disable_mlock = true
+
+# Pour la production, on activera plus tard le mlock et TLS

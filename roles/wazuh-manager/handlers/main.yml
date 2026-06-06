@@ -1,0 +1,6 @@
+---
+- name: Restart Wazuh Manager
+  systemd:
+    name: wazuh-manager
+    state: restarted
+  become: yes

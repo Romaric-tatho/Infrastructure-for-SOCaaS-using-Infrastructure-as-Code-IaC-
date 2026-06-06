@@ -1,0 +1,136 @@
+---
+- name: "Désactiver temporairement le pare-feu UFW pour le build"
+  ufw:
+    state: disabled
+  become: yes
+
+- name: "Purger les anciens résidus de dépôts et configurations obsolètes"
+  file:
+    path: "{{ item }}"
+    state: absent
+  become: yes
+  loop:
+    - /etc/apt/sources.list.d/wazuh.list
+    - /etc/apt/sources.list.d/wazuh-agent.list
+    - /usr/share/keyrings/wazuh.gpg
+    - /tmp/WAZUH-GPG-KEY
+    - /var/ossec/etc/authd.pass
+    - /var/ossec/etc/client.keys
+
+- name: "Installer les outils système nécessaires"
+  apt:
+    name:
+      - curl
+      - gnupg
+      - apt-transport-https
+      - ca-certificates
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: "Créer le répertoire des keyrings s'il n'existe pas"
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: "Télécharger la clé GPG Wazuh en format brut"
+  get_url:
+    url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    dest: /tmp/WAZUH-GPG-KEY
+    mode: '0644'
+  become: yes
+
+- name: "Convertir la clé en keyring"
+  shell: |
+    gpg --batch --yes --dearmor < /tmp/WAZUH-GPG-KEY > /usr/share/keyrings/wazuh.gpg
+    chmod 644 /usr/share/keyrings/wazuh.gpg
+  become: yes
+
+- name: "Ajouter le dépôt officiel Wazuh 4.x"
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main"
+    state: present
+    filename: wazuh
+    update_cache: no
+  become: yes
+
+- name: "Mettre à jour le cache APT"
+  apt:
+    update_cache: yes
+  become: yes
+
+- name: "Installer wazuh-agent"
+  apt:
+    name: wazuh-agent
+    state: present
+  become: yes
+
+- name: "Configurer l'adresse du manager Wazuh"
+  lineinfile:
+    path: /var/ossec/etc/ossec.conf
+    regexp: '<address>.*</address>'
+    line: '    <address>10.0.0.1</address>'
+    insertafter: '<client>'
+  become: yes
+
+- name: "Enrôler l'agent auprès du manager (Remplacement automatique par le manager)"
+  shell: |
+    /var/ossec/bin/agent-auth -m 10.0.0.1 -A {{ inventory_hostname }} -I any
+  register: enroll_result
+  changed_when: true
+  become: yes
+
+- name: "Afficher le résultat de l'enrôlement"
+  debug:
+    var: enroll_result.stdout_lines
+
+- name: "Corriger l'erreur journald dans ossec.conf (compatibilité)"
+  replace:
+    path: /var/ossec/etc/ossec.conf
+    regexp: '(?s)<localfile>\s*<log_format>journald</log_format>.*?</localfile>'
+    replace: ''
+  become: yes
+
+- name: "Générer un fichier ossec.conf minimal et propre pour l'agent"
+  copy:
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: wazuh
+    mode: '0660'
+    content: |
+      <ossec_config>
+        <client>
+          <server>
+            <address>10.0.0.1</address>
+            <port>1514</port>
+            <protocol>tcp</protocol>
+          </server>
+          <config_profile>ubuntu, ubuntu22, ubuntu22.04</config_profile>
+        </client>
+        <logging>
+          <log_format>plain</log_format>
+        </logging>
+      </ossec_config>
+  become: yes
+
+
+- name: "Activer et démarrer le service wazuh-agent"
+  systemd:
+    name: wazuh-agent
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+
+- name: "Bloquer les mises à jour automatiques de wazuh-agent"
+  dpkg_selections:
+    name: wazuh-agent
+    selection: hold
+  become: yes
+
+- name: "Réactiver proprement le pare-feu UFW"
+  ufw:
+    state: enabled
+  become: yes

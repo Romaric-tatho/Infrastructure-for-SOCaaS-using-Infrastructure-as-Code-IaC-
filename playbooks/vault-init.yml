@@ -1,0 +1,64 @@
+---
+- name: Initialiser et Configurer HashiCorp Vault de manière sécurisée
+  hosts: vault
+  vars:
+    vault_api_url: "http://10.0.0.2:8200"
+    credentials_path: "{{ lookup('env', 'HOME') }}/vault_credentials.json"
+
+  tasks:
+
+    - name: Vérifier le statut actuel de Vault
+      uri:
+        url: "{{ vault_api_url }}/v1/sys/seal-status"
+        method: GET
+        return_content: yes
+      register: vault_status
+      ignore_errors: yes
+
+    - name: Initialiser Vault UNIQUEMENT s'il n'est pas encore initialisé
+      uri:
+        url: "{{ vault_api_url }}/v1/sys/init"
+        method: POST
+        body_format: json
+        body:
+          secret_shares: 5
+          secret_threshold: 3
+      register: vault_init
+      when: not vault_status.json.initialized | default(true)
+      no_log: true
+
+    - name: Sauvegarder les credentials de manière sécurisée (seulement si initialisation)
+      copy:
+        content: "{{ vault_init.json | to_nice_json }}"
+        dest: "{{ credentials_path }}"
+        mode: '0600'
+      delegate_to: localhost
+      become: no
+      when: vault_init.changed
+      no_log: true
+
+    - name: Charger les credentials Vault (si déjà initialisé)
+      include_vars:
+        file: "{{ credentials_path }}"
+        name: vault_secrets
+      when: vault_status.json.initialized | default(false)
+
+    - name: Déverrouiller Vault (Unseal) si nécessaire
+      uri:
+        url: "{{ vault_api_url }}/v1/sys/unseal"
+        method: POST
+        body_format: json
+        body:
+          key: "{{ item }}"
+      loop: "{{ vault_secrets['keys'][0:3] | default([]) }}"
+      when: vault_status.json.sealed | default(false)
+      no_log: true
+
+    - name: Afficher le Root Token (une seule fois)
+      debug:
+        msg: 
+          - "=== VAULT INITIALISÉ AVEC SUCCÈS ==="
+          - "Root Token disponible dans : {{ credentials_path }}"
+          - "auvegardez ce fichier en lieu sûr et supprimez-le après utilisation !"
+      when: vault_init.changed
+

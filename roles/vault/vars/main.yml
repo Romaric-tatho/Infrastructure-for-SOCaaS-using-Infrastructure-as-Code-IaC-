@@ -1,0 +1,4 @@
+---
+vault_version: "1.15.4"
+vault_cluster_address: "10.0.0.2"
+vault_port: "8200"

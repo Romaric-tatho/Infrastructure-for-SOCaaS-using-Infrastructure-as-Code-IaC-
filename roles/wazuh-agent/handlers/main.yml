@@ -1,0 +1,6 @@
+---
+- name: "Redémarrer l'agent"
+  systemd:
+    name: wazuh-agent
+    state: restarted
+  become: yes
